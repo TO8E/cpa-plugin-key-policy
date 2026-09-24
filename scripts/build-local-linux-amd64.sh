@@ -6,6 +6,7 @@ REPO_ROOT=$(pwd)
 BUILD_WORK=${BUILD_WORK:-"$REPO_ROOT/.local-build"}
 GO_BIN=${GO_BIN:-go}
 ZIG_BIN=${ZIG_BIN:-zig}
+GO_BIN=$(command -v "$GO_BIN")
 mkdir -p "$BUILD_WORK" dist
 export GOTOOLCHAIN=local
 export GOPATH="$BUILD_WORK/gopath" GOCACHE="$BUILD_WORK/gocache"
@@ -13,7 +14,7 @@ export ZIG_GLOBAL_CACHE_DIR="$BUILD_WORK/zig-cache"
 
 # The tracked HTML is a placeholder; embed the actual UI only in the binaries.
 cp internal/plugin/web/dist/index.html "$BUILD_WORK/index.original.html"
-trap 'cp "$BUILD_WORK/index.original.html" internal/plugin/web/dist/index.html' EXIT
+trap 'cp "$BUILD_WORK/index.original.html" "$REPO_ROOT/internal/plugin/web/dist/index.html"' EXIT
 npm ci --prefix web
 VITE_HOSTED=1 npm run build --prefix web
 cp web/dist/index.html internal/plugin/web/dist/index.html
