@@ -2,6 +2,8 @@
 
 > TO8E 修复版 `0.5.2-to8e.1`：修复 CPA 已允许重试、但仍带 `error` 状态的凭证被插件再次排除而持续返回 503 的问题。保留分组隔离、禁用状态、优先级和权重规则。可手动运行 Actions → **Linux amd64 hotfix**，下载测试通过的 Linux x86_64 `.so`；该工作流也会检查真实 C ABI 加载和内嵌管理页面。
 
+本地打包：`GO_BIN=/path/to/go ZIG_BIN=/path/to/zig sh scripts/build-local-linux-amd64.sh`。macOS 使用 Zig 交叉编译；Linux x86_64 使用本机 C 编译器。产物位于 `dist/`，脚本执行 Go 竞态测试、vet、管理页构建、动态库接口检查及 ZIP/SHA256 校验。
+
 面向 [CLIProxyAPI](https://github.com/router-for-me/CLIProxyAPI) 的**下游 API Key 策略插件**。
 
 用人话说：你可以给客户发自己的 `cpa_…` 钥匙。每把钥匙只能用你允许的模型，还能限速、限额，并转到 CPA 真实上游（Codex、Claude、openai-compatibility 通道等）。CPA 自带的 `api-keys` 仍可留给管理员；**不要把插件下发的 key 再写进 `api-keys`**，否则会绕过本插件策略。

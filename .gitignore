@@ -4,6 +4,7 @@
 *.h
 # built shared libraries (root dist/ only)
 /dist/
+/.local-build/
 .gomodcache/
 .gocache/
 .go-appdata/
