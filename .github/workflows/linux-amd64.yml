@@ -1,0 +1,80 @@
+name: Linux amd64 hotfix
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    # glibc 2.35 also loads on the official CPA Debian 12 image (glibc 2.36).
+    runs-on: ubuntu-22.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v6
+        with:
+          go-version: '1.26.x'
+          cache: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - name: Build embedded management UI
+        run: |
+          npm ci --prefix web
+          VITE_HOSTED=1 npm run build --prefix web
+          cp web/dist/index.html internal/plugin/web/dist/index.html
+      - name: Check Go formatting
+        run: test -z "$(gofmt -l internal/plugin/app.go internal/plugin/types.go internal/plugin/scheduler_recovery_test.go)"
+      - name: Verify regression fails against upstream
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp internal/plugin/app.go "$RUNNER_TEMP/app.fixed.go"
+          trap 'cp "$RUNNER_TEMP/app.fixed.go" internal/plugin/app.go' EXIT
+          git show c041a48bb5e3c3ab44b24d05fa2a27c77c55caf5:internal/plugin/app.go > internal/plugin/app.go
+          if go test ./internal/plugin -run '^TestSchedulerPickRecoveredErrorCandidates$' -count=1 > "$RUNNER_TEMP/upstream-regression.log" 2>&1; then
+            cat "$RUNNER_TEMP/upstream-regression.log"
+            echo 'Expected the regression to fail against upstream'
+            exit 1
+          fi
+          cat "$RUNNER_TEMP/upstream-regression.log"
+          grep -q '没有可用的凭证候选项' "$RUNNER_TEMP/upstream-regression.log"
+      - name: Test and vet fixed source
+        run: |
+          go test -race ./...
+          go vet ./...
+      - name: Build Linux x86_64 shared library
+        run: |
+          mkdir -p dist
+          CGO_ENABLED=1 GOOS=linux GOARCH=amd64 go build \
+            -trimpath -buildvcs=false -tags cshared -buildmode=c-shared \
+            -ldflags='-s -w' -o dist/cpa-key-policy.so ./cmd/cpa-key-policy
+      - name: Verify ELF and smoke test C ABI
+        run: |
+          file dist/cpa-key-policy.so
+          readelf -h dist/cpa-key-policy.so | grep 'Advanced Micro Devices X86-64'
+          readelf --version-info dist/cpa-key-policy.so
+          python3 scripts/smoke-shared-library.py dist/cpa-key-policy.so
+      - name: Package
+        run: |
+          cd dist
+          sha256sum cpa-key-policy.so > SHA256SUMS
+          printf 'Commit: %s\nTarget: linux/amd64\n' "$GITHUB_SHA" > BUILD.txt
+          go version >> BUILD.txt
+          zip cpa-key-policy_linux_amd64.zip cpa-key-policy.so SHA256SUMS BUILD.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cpa-key-policy-linux-amd64
+          path: |
+            dist/cpa-key-policy.so
+            dist/cpa-key-policy_linux_amd64.zip
+            dist/SHA256SUMS
+            dist/BUILD.txt
+          if-no-files-found: error
+          retention-days: 90

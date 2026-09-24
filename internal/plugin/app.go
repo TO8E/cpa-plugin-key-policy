@@ -328,8 +328,13 @@ func (a *App) pickScheduler(raw []byte) ([]byte, error) {
 func schedulerCandidateUsable(status string) bool {
 	status = strings.ToLower(strings.TrimSpace(status))
 	status = strings.NewReplacer("-", "_", " ", "_").Replace(status)
+	// CPA checks model-specific availability and cooldown deadlines before
+	// sending Candidates. A selectable auth can still carry StatusError from
+	// an earlier failure (or another model). Rejecting "error" here prevents
+	// the recovery request that would clear that status. Keep explicit disabled
+	// or unavailable states excluded, but do not override CPA's retry decision.
 	switch status {
-	case "disabled", "error", "expired", "revoked", "invalid", "unavailable", "cooldown", "cooling_down", "quota_exhausted", "exhausted", "blocked":
+	case "disabled", "expired", "revoked", "invalid", "unavailable", "cooldown", "cooling_down", "quota_exhausted", "exhausted", "blocked":
 		return false
 	default:
 		return true
