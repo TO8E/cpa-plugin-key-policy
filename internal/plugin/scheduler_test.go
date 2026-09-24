@@ -549,7 +549,7 @@ func schedulerPickForTest(t *testing.T, app *App, request SchedulerPickRequest) 
 	}
 	var response SchedulerPickResponse
 	if err := unmarshalOK(rawResponse, &response); err != nil {
-		t.Fatal(err)
+		t.Fatalf("scheduler.pick response %s: %v", rawResponse, err)
 	}
 	if !response.Handled || response.AuthID == "" {
 		t.Fatalf("期望调度器接管请求并返回凭证，实际为 %+v", response)
